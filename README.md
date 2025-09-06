@@ -6,7 +6,9 @@ The code allows users to:
 
 - View taxa at different rank levels (Phylum, Class, Order, etc.) interactively
 
-- Faceting of plots based on sample_data() of phyloseq object
+- Hover over plot to see pop-up of full taxonomic information for each OTU
+
+- Control number of columns in faceted plots based on sample_data() of phyloseq object
 
 - Save plots as pdf
 
