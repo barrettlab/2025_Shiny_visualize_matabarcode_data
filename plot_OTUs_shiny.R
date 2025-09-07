@@ -1,12 +1,14 @@
 # R Shiny script to plot fungal ITS2 metabarcoding data
 # Craig F. Barrett, Department of Biology, West Virginia University
+# 06 September, 2025
+
 
 # Install packages
 
 # Base CRAN packages
 # install.packages(c(
 #   "shiny", "phyloseq", "ggplot2", "plotly", 
-#   "dplyr", "tidyr", "ggh4x"
+#   "dplyr", "tidyr"
 # ))
 
 # You may need BiocManager to install phyloseq
@@ -28,6 +30,9 @@
 # OpenAI (2025). ChatGPT (GPT-4o). Retrieved from https://chat.openai.com/
 
 
+# R Shiny script to plot fungal ITS2 metabarcoding data
+# Craig F. Barrett, Department of Biology, West Virginia University
+
 library(shiny)
 library(phyloseq)
 library(ggplot2)
@@ -46,6 +51,7 @@ ui <- fluidPage(
       uiOutput("subtaxa_ui"),
       selectInput("facet_var", "Facet by (optional)", choices = NULL, selected = NULL),
       numericInput("facet_ncol", "Facets per row (ncol)", value = NA, min = 1),
+      checkboxInput("hide_x_labels", "Hide sample labels (x-axis)", value = FALSE),
       hr(),
       numericInput("pdf_width", "PDF width (in)", value = 11, min = 4),
       numericInput("pdf_height", "PDF height (in)", value = 8.5, min = 4),
@@ -129,6 +135,7 @@ server <- function(input, output, session) {
 
     df <- df[df[[input$tax_rank]] %in% input$taxa, ]
 
+    # Filter based on selected subtaxa (one rank below current)
     ranks <- rank_names(ps_data())
     current_rank_index <- which(ranks == input$tax_rank)
     if (current_rank_index < length(ranks)) {
@@ -165,6 +172,10 @@ server <- function(input, output, session) {
       df[[input$facet_var]] <- droplevels(df[[input$facet_var]])
     }
 
+    # Conditionally hide x labels/ticks in ggplot
+    x_text <- if (isTRUE(input$hide_x_labels)) element_blank() else element_text(angle = 45, hjust = 1)
+    x_ticks <- if (isTRUE(input$hide_x_labels)) element_blank() else element_line()
+
     p <- ggplot(
       df,
       aes(
@@ -188,7 +199,8 @@ server <- function(input, output, session) {
       ) +
       theme_bw() +
       theme(
-        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.text.x = x_text,
+        axis.ticks.x = x_ticks,
         strip.text = element_text(size = 10),
         strip.background = element_rect(fill = "grey90")
       )
@@ -205,7 +217,14 @@ server <- function(input, output, session) {
   })
 
   output$barplot <- renderPlotly({
-    ggplotly(static_plot(), tooltip = "text") %>% layout(barmode = "stack")
+    gp <- ggplotly(static_plot(), tooltip = "text") %>% layout(barmode = "stack")
+
+    # Ensure x-axis tick labels are hidden in plotly as well (handles facets xaxis, xaxis2, ...)
+    if (isTRUE(input$hide_x_labels)) {
+      ax_names <- grep("^xaxis", names(gp$x$layout), value = TRUE)
+      for (ax in ax_names) gp$x$layout[[ax]]$showticklabels <- FALSE
+    }
+    gp
   })
 
   output$download_plot <- downloadHandler(
@@ -219,4 +238,3 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
-
